@@ -84,7 +84,7 @@
 .sun { background: #e6ad52; clip-path: polygon(36% 0,64% 0,64% 18%,82% 18%,82% 36%,100% 36%,100% 64%,82% 64%,82% 82%,64% 82%,64% 100%,36% 100%,36% 82%,18% 82%,18% 64%,0 64%,0 36%,18% 36%,18% 18%,36% 18%); }
 .moon { background: #8b9aca; clip-path: polygon(50% 0,24% 0,24% 20%,0 20%,0 76%,24% 76%,24% 100%,78% 100%,78% 78%,100% 78%,100% 54%,54% 54%,54% 35%,35% 35%,35% 19%,50% 19%); }
 .toolbar { padding: 7px; margin-bottom: 17px; }
-.toolbar, .collection, .stage { box-shadow: 4px 4px 0 var(--shadow); }
+.toolbar, .collection, .stage, .online { box-shadow: 4px 4px 0 var(--shadow); }
 .workbench { gap: 17px; grid-template-columns: minmax(260px, .80fr) minmax(0, 1.20fr); }
 .panel-head { position: relative; min-height: 56px; padding-left: 16px; }
 .panel-head::before { content: ""; width: 4px; height: 12px; position: absolute; left: 0; background: var(--accent); }

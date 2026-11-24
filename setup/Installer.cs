@@ -19,6 +19,8 @@ internal static class Installer {
         @"assets\mountains.jpg", @"assets\night.jpg", @"assets\ocean.jpg", @"ui\buttons.css", @"ui\themes.css", @"ui\meteors.css",
         @"assets\theme-day.png", @"assets\theme-night.png", @"assets\day.wav", @"assets\night.wav", @"assets\PixelifySans-LICENSE.txt",
         @"ui\appearance.js", @"ui\full.css",
+        "desktop.mjs", "web-library.mjs", "online-catalog.mjs", @"runtime\node\node.exe", @"runtime\node\LICENSE.txt",
+        @"ui\video-wallpaper.ps1",
     };
 
     public static string DefaultPath() {
@@ -35,7 +37,8 @@ internal static class Installer {
     }
 
     public static bool IsKontur(string path) {
-        return File.Exists(Path.Combine(path, "Kontur.exe")) && File.Exists(Path.Combine(path, "desktop.mjs")) &&
+        return File.Exists(Path.Combine(path, "Kontur.exe")) &&
+            (File.Exists(Path.Combine(path, "KonturCore.exe")) || File.Exists(Path.Combine(path, "desktop.mjs"))) &&
             File.Exists(Path.Combine(path, "ui", "index.html"));
     }
 
@@ -64,7 +67,7 @@ internal static class Installer {
             EnsureWebView(staging, progress);
             var files = Unpack(incoming, progress);
 #if LITE_EDITION
-            var retained = EnsureNode(staging, incoming, target, files, progress);
+            var retained = EnsureMpv(staging, incoming, target, files, progress);
             File.WriteAllLines(Path.Combine(incoming, ListingName), files.Concat(retained), new UTF8Encoding(false));
 #else
             File.WriteAllLines(Path.Combine(incoming, ListingName), files, new UTF8Encoding(false));
@@ -74,10 +77,13 @@ internal static class Installer {
             if (!Directory.Exists(target)) Directory.Move(incoming, target);
             else {
                 ValidatePath(target);
+                StopInstalledRuntime(incoming, target);
                 foreach (var path in RetiredAssets.Except(files, StringComparer.OrdinalIgnoreCase)) {
                     var obsolete = Path.Combine(target, path);
                     if (!File.Exists(obsolete)) continue;
                     EnsureDirectory(target, Path.GetDirectoryName(obsolete));
+                    if ((File.GetAttributes(obsolete) & FileAttributes.ReparsePoint) != 0)
+                        throw new IOException("Файл установки перенаправлен. Выберите обычную папку.");
                     var previous = Path.Combine(backup, path);
                     Directory.CreateDirectory(Path.GetDirectoryName(previous));
                     var change = new FileChange(obsolete, previous);
@@ -126,69 +132,91 @@ internal static class Installer {
             }
         }
 
+#if LITE_EDITION
+        progress(92, "Сжимаю файлы на диске…");
+        CompactRuntime(target);
+#endif
         progress(95, "Добавляю ярлыки Windows…");
         Register(target, desktopShortcut);
         progress(100, "Установка завершена");
         return target;
     }
 
-#if LITE_EDITION
-    private static IEnumerable<string> EnsureNode(string staging, string incoming, string target, List<string> files, Action<int, string> progress) {
-        const string executable = @"runtime\node\node.exe";
-        const string license = @"runtime\node\LICENSE.txt";
-        const string release = "v24.22.3";
-        const string expectedHash = "e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f";
-        var bundled = Path.Combine(target, executable);
-        if (File.Exists(bundled)) return new[] { executable, license }.Where(path => File.Exists(Path.Combine(target,path)));
-
-        var launch = Path.Combine(incoming, "Launch.ps1");
-        var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
-        bool checkLocal = true;
-#if SETUP_TEST
-        checkLocal = Environment.GetEnvironmentVariable("KONTUR_SETUP_TEST_FORCE_NODE") != "1";
-#endif
-        if (checkLocal) {
-            using (var check = Process.Start(new ProcessStartInfo(powershell, "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File " + Quote(launch) + " -CheckNode") {
-                UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = incoming,
-            })) {
-                if (check.WaitForExit(12000) && check.ExitCode == 0) return new string[0];
-                if (!check.HasExited) check.Kill();
-            }
-        }
-
-        progress(86, "Загружаю Node.js…");
-        var download = Path.Combine(staging, "node.zip");
-        var releaseFolder = "node-" + release + "-win-x64";
-        var curl = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "curl.exe");
-        var uri = "https://nodejs.org/dist/" + release + "/" + releaseFolder + ".zip";
-        if (!File.Exists(curl)) throw new IOException("Для загрузки Node.js нужен curl из Windows. Можно установить полную версию «Контура».");
-        const string networkError = "Не удалось загрузить Node.js. Проверьте интернет или установите полную версию «Контура».";
-        using (var process = Process.Start(new ProcessStartInfo(curl,
-            "--disable --fail --silent --show-error --location --proto =https --connect-timeout 15 --max-time 100 --output " + Quote(download) + " " + Quote(uri)) {
-            UseShellExecute = false, CreateNoWindow = true,
+    private static void StopInstalledRuntime(string incoming, string target) {
+        var shell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+        using (var process = Process.Start(new ProcessStartInfo(shell,
+            "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File " + Quote(Path.Combine(incoming,"StopRuntime.ps1")) +
+            " -InstallDirectory " + Quote(target)) {
+            UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = incoming,
         })) {
-            if (!process.WaitForExit(105000)) { process.Kill(); throw new IOException(networkError); }
-            if (process.ExitCode != 0) throw new IOException(networkError);
+            if (!process.WaitForExit(20000)) {
+                process.Kill();
+                throw new IOException("Закройте «Контур» и повторите установку.");
+            }
+            if (process.ExitCode != 0) throw new IOException("Закройте «Контур» и повторите установку.");
         }
-        using (var sha = SHA256.Create())
-        using (var input = File.OpenRead(download)) {
-            var actual = BitConverter.ToString(sha.ComputeHash(input)).Replace("-", "");
-            if (!String.Equals(actual, expectedHash, StringComparison.OrdinalIgnoreCase))
-                throw new IOException("Контрольная сумма Node.js не совпала. Повторите установку.");
+    }
+
+#if LITE_EDITION
+    private static IEnumerable<string> EnsureMpv(string staging, string incoming, string target, List<string> files, Action<int, string> progress) {
+        const string binary = @"runtime\mpv\libmpv-2.dll";
+        const string license = @"runtime\mpv\LICENSE.LGPL";
+        if (File.Exists(Path.Combine(target,binary)) && File.Exists(Path.Combine(target,license))) return new[] {binary,license};
+        progress(86, "Загружаю видеодвижок mpv…");
+        var path = Path.Combine(staging,"mpv.zip");
+        Download("https://github.com/mpv-player/mpv/releases/download/v0.42.0/libmpv-v0.42.0-x86_64-w64-mingw32-lgpl.zip",path,"mpv");
+        VerifyDigest(path,"8e5f77430efc53ef175804ba6618527e3af0448a0dcabf04d3cc72659d1a6fce","mpv");
+        Directory.CreateDirectory(Path.Combine(incoming,@"runtime\mpv"));
+        using (var input = File.OpenRead(path))
+        using (var archive = new ZipArchive(input,ZipArchiveMode.Read)) {
+            ExtractAsset(archive,"libmpv-2.dll",Path.Combine(incoming,binary));
+            ExtractAsset(archive,"LICENSE.LGPL",Path.Combine(incoming,license));
         }
-        Directory.CreateDirectory(Path.Combine(incoming, @"runtime\node"));
-        using (var input = File.OpenRead(download))
-        using (var archive = new ZipArchive(input, ZipArchiveMode.Read)) {
-            ExtractNodeAsset(archive, releaseFolder + "/node.exe", Path.Combine(incoming, executable));
-            ExtractNodeAsset(archive, releaseFolder + "/LICENSE", Path.Combine(incoming, license));
-        }
-        files.AddRange(new[] {executable,license});
+        files.AddRange(new[] {binary,license});
         return new string[0];
     }
 
-    private static void ExtractNodeAsset(ZipArchive archive, string entryName, string destination) {
+    private static void CompactRuntime(string target) {
+        try {
+            if (!String.Equals(new DriveInfo(Path.GetPathRoot(target)).DriveFormat,"NTFS",StringComparison.OrdinalIgnoreCase)) return;
+            var system = Environment.GetFolderPath(Environment.SpecialFolder.System);
+            var player = Path.Combine(target,@"runtime\mpv\libmpv-2.dll");
+            if (!File.Exists(player)) return;
+            using (var tool = Process.Start(new ProcessStartInfo(Path.Combine(system,"compact.exe"),"/C /I /Q " + Quote(player)) {
+                UseShellExecute = false, CreateNoWindow = true,
+            })) {
+                if (!tool.WaitForExit(30000)) tool.Kill();
+            }
+        } catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        catch (System.ComponentModel.Win32Exception) { }
+    }
+
+    private static void Download(string uri, string path, string component) {
+        var curl = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "curl.exe");
+        if (!File.Exists(curl)) throw new IOException("Для загрузки компонентов нужен curl из Windows. Можно установить полную версию «Контура».");
+        var networkError = "Не удалось загрузить " + component + ". Проверьте интернет или установите полную версию «Контура».";
+        using (var process = Process.Start(new ProcessStartInfo(curl,
+            "--disable --fail --silent --show-error --location --proto =https --connect-timeout 15 --max-time 180 --output " + Quote(path) + " " + Quote(uri)) {
+            UseShellExecute = false, CreateNoWindow = true,
+        })) {
+            if (!process.WaitForExit(185000)) { process.Kill(); throw new IOException(networkError); }
+            if (process.ExitCode != 0) throw new IOException(networkError);
+        }
+    }
+
+    private static void VerifyDigest(string path, string expectedHash, string component) {
+        using (var sha = SHA256.Create())
+        using (var input = File.OpenRead(path)) {
+            var actual = BitConverter.ToString(sha.ComputeHash(input)).Replace("-", "");
+            if (!String.Equals(actual, expectedHash, StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Контрольная сумма " + component + " не совпала. Повторите установку.");
+        }
+    }
+
+    private static void ExtractAsset(ZipArchive archive, string entryName, string destination) {
         var entry = archive.GetEntry(entryName);
-        if (entry == null) throw new IOException("В архиве Node.js отсутствует файл " + entryName);
+        if (entry == null) throw new IOException("В архиве отсутствует файл " + entryName);
         using (var input = entry.Open())
         using (var output = File.Create(destination)) input.CopyTo(output);
     }
@@ -198,8 +226,22 @@ internal static class Installer {
         if (HasWebView()) return;
         progress(0, "Устанавливаю Microsoft WebView2…");
         var path = Path.Combine(staging, "MicrosoftEdgeWebView2Setup.exe");
+#if LITE_EDITION
+        Download("https://go.microsoft.com/fwlink/p/?LinkId=2124703",path,"Microsoft WebView2");
+        var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+        var verify = new ProcessStartInfo(powershell,
+            "-NoProfile -NonInteractive -Command \"$signature=Get-AuthenticodeSignature -LiteralPath $env:KONTUR_SETUP_BOOTSTRAP; if($signature.Status -eq 'Valid' -and $signature.SignerCertificate.Subject -match 'Microsoft Corporation'){exit 0}; exit 1\"") {
+            UseShellExecute = false, CreateNoWindow = true,
+        };
+        verify.EnvironmentVariables["KONTUR_SETUP_BOOTSTRAP"] = path;
+        using (var check = Process.Start(verify)) {
+            if (!check.WaitForExit(30000)) check.Kill();
+            if (!check.HasExited || check.ExitCode != 0) throw new IOException("Не удалось проверить подпись Microsoft WebView2.");
+        }
+#else
         using (var resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("Kontur.WebViewBootstrapper"))
         using (var output = File.Create(path)) resource.CopyTo(output);
+#endif
         using (var process = Process.Start(new ProcessStartInfo(path, "/silent /install") {
             UseShellExecute = false, CreateNoWindow = true,
         })) {
@@ -303,11 +345,11 @@ internal static class Installer {
         }
 #endif
         using (var key = Registry.CurrentUser.CreateSubKey(uninstallKey)) {
-            var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
             key.SetValue("DisplayName", "Контур");
+            key.SetValue("DisplayVersion", Assembly.GetExecutingAssembly().GetName().Version.ToString(3));
             key.SetValue("DisplayIcon", exe + ",0");
             key.SetValue("InstallLocation", target);
-            key.SetValue("UninstallString", Quote(powershell) + " -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File " + Quote(Path.Combine(target, "Uninstall.ps1")));
+            key.SetValue("UninstallString", Quote(Path.Combine(target, "Uninstall.exe")));
             key.SetValue("NoModify", 1, RegistryValueKind.DWord);
             key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
         }

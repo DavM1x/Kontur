@@ -10,6 +10,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 import { webLibrary } from './web-library.mjs';
+import { createOnlineCatalog, catalogFailure } from './online-catalog.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.KONTUR_PORT || 48371);
@@ -18,6 +19,9 @@ const origin = 'http://' + host;
 const run = promisify(execFile);
 const types = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.png':'image/png', '.jpg':'image/jpeg', '.wav':'audio/wav' };
 const web = webLibrary(root);
+const online = createOnlineCatalog();
+const nativeVideo = join(root,'KonturVideo.exe');
+const hasNativeVideo = await stat(nativeVideo).then(info => info.isFile(), () => false);
 const pngHeader = Buffer.from([137,80,78,71,13,10,26,10]);
 const videoDirectory = join(root, 'runtime', 'active-video');
 const selectionPath = join(videoDirectory, 'selected.json');
@@ -78,9 +82,10 @@ async function launchVideo(video) {
   let active = false;
   let starting = true;
   try {
-    child = spawn('powershell.exe', ['-NoProfile','-NonInteractive','-STA','-ExecutionPolicy','Bypass',
-      '-File',join(root,'ui','video-wallpaper.ps1'),'-Path',video,'-ReadyPath',ready,'-BridgeOrigin',origin],
-      {windowsHide:true,stdio:['ignore','ignore','pipe']});
+    const executable = hasNativeVideo ? nativeVideo : 'powershell.exe';
+    const args = hasNativeVideo ? ['--play',video,ready,origin] : ['-NoProfile','-NonInteractive','-STA','-ExecutionPolicy','Bypass',
+      '-File',join(root,'ui','video-wallpaper.ps1'),'-Path',video,'-ReadyPath',ready,'-BridgeOrigin',origin];
+    child = spawn(executable,args,{windowsHide:true,stdio:['ignore','ignore','pipe']});
     active = true;
     playingFiles.add(video);
     let diagnostics = '';
@@ -240,7 +245,28 @@ const server = createServer(async (request, response) => {
     if (path === '/video-status') return reply(response, 200, videoPlayer ? 'playing' : restoringVideo ? 'starting' : 'idle');
     if (path === '/status') {
       lastUse = Date.now();
-      return reply(response, 200, 'Kontur desktop bridge 9');
+      return reply(response, 200, 'Kontur desktop bridge 10');
+    }
+    if (path.startsWith('/online/')) {
+      const url = new URL(origin + path);
+      const resource = /^\/online\/(thumb|file)\/([a-f0-9-]{36})$/.exec(url.pathname);
+      const thumb = resource?.[1] === 'thumb';
+      if (request.headers.origin && request.headers.origin !== origin) return reply(response,403);
+      if (!thumb && request.headers['x-kontur-action'] !== 'online') return reply(response,403);
+      if (url.pathname !== '/online/search' && !resource) return reply(response,404);
+      lastUse = Date.now();
+      const disconnected = new AbortController();
+      response.once('close', () => disconnected.abort());
+      const signal = AbortSignal.any([disconnected.signal,AbortSignal.timeout(resource && !thumb ? 90_000 : 20_000)]);
+      try {
+        if (resource) return await online.media(resource[2],thumb,response,signal);
+        return jsonReply(response,await online.search(url.searchParams,signal));
+      } catch (error) {
+        if (response.destroyed) return;
+        if (response.headersSent) return response.destroy();
+        const failure = catalogFailure(error);
+        return reply(response,failure.status,failure.message);
+      }
     }
     if (!/^\/(ui|assets)\/[a-z0-9-]+\.(html|css|js|png|jpg|wav)$/.test(path)) return reply(response, 404);
     try {

@@ -65,6 +65,15 @@ function select(item, direction = 0) {
   selected = item;
   byId('title').textContent = item?.title ?? '';
   byId('title').hidden = !item;
+  const credit = item?.credit;
+  byId('source-details').hidden = !credit;
+  if (credit) {
+    byId('source-author').textContent = credit.author ? 'Автор: ' + credit.author : '';
+    byId('source-license').textContent = credit.rights.label;
+    if (credit.rights.url) byId('source-license').href = credit.rights.url;
+    else byId('source-license').removeAttribute('href');
+    byId('source-original').href = credit.page;
+  }
   byId('type').hidden = !item;
   byId('type').textContent = item?.kind === 'web' ? 'Веб-обои' : item?.kind === 'video' ? 'Видео' : 'Фото';
   byId('apply').disabled = !item?.url;
@@ -187,6 +196,9 @@ function render({ entrance = false, preferred = selected } = {}) {
 
 function openTab(nextSection, preferred) {
   section = nextSection;
+  byId('workbench').hidden = false;
+  byId('online').hidden = true;
+  byId('online-tab').setAttribute('aria-pressed','false');
   search.value = '';
   byId('kind').value = '';
   byId('library-tab').setAttribute('aria-pressed', String(section === 'library'));
@@ -214,7 +226,7 @@ function libraryTransaction(database, mode, operation) {
   });
 }
 function addStoredFile(record) {
-  const item = { key:record.key, title:record.title, kind:record.kind, file:record.file, url:URL.createObjectURL(record.file) };
+  const item = { key:record.key, title:record.title, kind:record.kind, file:record.file, credit:record.credit, url:URL.createObjectURL(record.file) };
   library.push(item);
   return item;
 }
@@ -227,13 +239,14 @@ async function restoreLibrary() {
   } catch { libraryDatabase = undefined; }
 }
 const libraryReady = Promise.resolve().then(restoreLibrary);
-async function importFiles(files, projectTitle) {
+async function importFiles(files, projectTitle, credit) {
   await libraryReady;
   const records = Array.from(files).filter((file) => supportedFile.test(file.name)).map((file) => ({
     key: 'file:' + crypto.randomUUID(),
     title: projectTitle || file.name.replace(/\.[^.]+$/, ''),
     kind: /\.(mp4|webm)$/i.test(file.name) ? 'video' : 'image',
     file,
+    credit,
   }));
   if (!records.length) { notify('Выбери MP4, WebM, JPG, PNG или WebP.'); return; }
   let saved = false;

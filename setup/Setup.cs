@@ -36,6 +36,7 @@ internal sealed class SetupWindow : Form {
 #if LITE_EDITION
     private const int SideWidth = 0;
     private const string Edition = "Облегчённая версия";
+    private const string FreshInstallHint = "Для загрузки видеодвижка при первой установке нужен интернет.";
     private static readonly Color Paper = Color.FromArgb(245, 247, 250);
     private static readonly Color Ink = Color.FromArgb(34, 39, 49);
     private static readonly Color Secondary = Color.FromArgb(83, 96, 113);
@@ -47,6 +48,7 @@ internal sealed class SetupWindow : Form {
 #else
     private const int SideWidth = 280;
     private const string Edition = "Полная версия";
+    private const string FreshInstallHint = "Видеообои можно восстановить при входе в Windows.";
     private static readonly Color Paper = Color.FromArgb(25, 33, 57);
     private static readonly Color Ink = Color.FromArgb(239, 240, 255);
     private static readonly Color Secondary = Color.FromArgb(185, 194, 220);
@@ -126,7 +128,7 @@ internal sealed class SetupWindow : Form {
         try {
             status.Text = Installer.IsKontur(folder.Text.Trim())
                 ? "В этой папке уже установлен «Контур»."
-                : "Видеообои можно восстановить при входе в Windows.";
+                : FreshInstallHint;
         } catch (ArgumentException) { status.Text = ""; }
     }
 

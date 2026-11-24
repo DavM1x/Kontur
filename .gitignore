@@ -2,6 +2,7 @@
 /obj/
 /deps/
 /runtime/
+/rust/target/
 /.kontur-files.txt
 *.user
 *.userprefs

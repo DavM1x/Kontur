@@ -1,4 +1,4 @@
-param([switch]$Quiet)
+param([switch]$Quiet,[int]$LauncherPid)
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath($PSScriptRoot)
 $index = Join-Path $root '.kontur-files.txt'
@@ -41,16 +41,13 @@ try {
         }
     }
 
-    $bridge = Join-Path $root 'desktop.mjs'
-    $pattern = '(?:^|\s|")' + [regex]::Escape($bridge) + '(?:"|\s|$)'
-    $processes = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object CommandLine -match $pattern)
-    if ($processes.Count) {
-        try {
-            $origin = 'http://127.0.0.1:48371'
-            Invoke-WebRequest -UseBasicParsing -Uri "$origin/stop-video" -Headers @{Origin=$origin; 'X-Kontur-Action'='set-video'} -Method Post -TimeoutSec 3 | Out-Null
-        } catch {}
-        foreach ($process in $processes) { Stop-Process -Id $process.ProcessId -ErrorAction SilentlyContinue }
+    if ($LauncherPid) {
+        $launcher = Get-Process -Id $LauncherPid -ErrorAction SilentlyContinue
+        if ($launcher -and $launcher.Path -eq (Join-Path $root 'Uninstall.exe') -and -not $launcher.WaitForExit(4000)) {
+            throw 'Не удалось освободить программу удаления «Контура».'
+        }
     }
+    & (Join-Path $root 'StopRuntime.ps1') -InstallDirectory $root
 
     $holding = Join-Path $root ('.kontur-uninstall-' + [guid]::NewGuid().ToString('N'))
     [IO.Directory]::CreateDirectory($holding) | Out-Null

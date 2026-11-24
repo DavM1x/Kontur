@@ -11,6 +11,7 @@
 <!-- full:end -->
 <script defer src="we-archives.js"></script>
 <script defer src="ui.js"></script>
+<script defer src="online.js"></script>
 <!-- full:begin -->
 <script defer src="appearance.js"></script>
 <!-- full:end -->
@@ -40,6 +41,7 @@
     <nav aria-label="Разделы">
       <button id="library-tab" aria-pressed="true">Библиотека</button>
       <button id="favorites-tab" aria-pressed="false">Избранное</button>
+      <button id="online-tab" aria-pressed="false">Онлайн</button>
     </nav>
     <div class="actions">
       <button id="settings" type="button">Настройки</button>
@@ -48,7 +50,7 @@
     </div>
   </div>
 
-  <main class="workbench">
+  <main class="workbench" id="workbench">
     <section class="collection" aria-labelledby="collection-title">
       <div class="panel-head collection-head">
         <h2 id="collection-title">Библиотека</h2><span id="count" aria-live="polite" aria-label="Количество обоев"></span>
@@ -80,6 +82,7 @@
         <div class="preview-empty" id="preview-empty"><div class="screen-icon" aria-hidden="true"></div><p id="preview-message">Выбери обои в библиотеке</p></div>
       </div>
       <h3 id="title" hidden></h3>
+      <p class="source-details" id="source-details" hidden><span id="source-author"></span><a id="source-license" target="_blank" rel="noopener noreferrer"></a><a id="source-original" target="_blank" rel="noopener noreferrer">Оригинал</a></p>
       <div class="stage-controls" id="stage-controls" hidden>
         <label id="fit-label" for="fit">Масштаб</label><select id="fit"><option value="cover">Заполнить</option><option value="contain">Вписать</option></select>
         <label id="web-fps-label" for="web-fps" hidden>Частота кадров</label>
@@ -92,6 +95,20 @@
       </div>
     </section>
   </main>
+  <section class="online" id="online" aria-labelledby="online-title" hidden>
+    <header class="panel-head"><h2 id="online-title">Онлайн-обои</h2></header>
+    <form id="online-search" class="online-search">
+      <input id="online-query" type="search" placeholder="Например, северное сияние" aria-label="Поиск онлайн-обоев" autocomplete="off" minlength="2" maxlength="100" required>
+      <select id="online-source" aria-label="Источник"><option value="commons">Wikimedia Commons</option><option value="flickr">Flickr через Openverse</option></select>
+      <select id="online-kind" aria-label="Формат"><option value="image">Фото</option><option value="video">Видео</option></select>
+      <button class="primary" type="submit">Найти</button>
+    </form>
+    <div class="online-content">
+      <p id="online-notice" role="status">Найди фотографии или видео и добавь понравившиеся в библиотеку.</p>
+      <div class="online-results" id="online-results"></div>
+      <button id="online-more" type="button" hidden>Ещё результаты</button>
+    </div>
+  </section>
 </div>
 
 <input type="file" id="project-files" webkitdirectory hidden>

@@ -118,7 +118,28 @@ input::placeholder { color: var(--muted); }
 .stage:fullscreen { border: 0; background: #101115; }
 .stage:fullscreen .preview-surface { position: absolute; margin: 0; inset: 0; width: 100%; height: 100%; border: 0; }
 .stage:fullscreen .exit-fullscreen { display: inline-grid; position: absolute; top: 20px; right: 20px; z-index: 3; }
-.stage:fullscreen :is(#preview-title,#type,#favorite,#apply,#title,.stage-controls,.playback) { display: none; }
+.stage:fullscreen :is(#preview-title,#type,#favorite,#apply,#title,.source-details,.stage-controls,.playback) { display: none; }
+
+.source-details { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0 14px 11px; color: var(--muted); font-size: 12px; }
+.source-details a, .online a { color: var(--accent); text-underline-offset: 3px; }
+.source-details a:not([href]) { color: inherit; }
+.online { border: var(--edge) solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.online-search { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px; border-bottom: var(--edge) solid var(--line); }
+.online-search input { flex: 1 1 220px; }
+.online-content { padding: 12px 14px 14px; }
+#online-notice { color: var(--muted); margin: 2px 0 9px; }
+#online-notice:empty { display: none; }
+.online-results { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%, 235px),1fr)); gap: 12px; }
+.online-card { min-width: 0; border: var(--edge) solid var(--line); background: var(--panel); display: flex; flex-direction: column; }
+.online-frame { position: relative; aspect-ratio: 16 / 9; display: grid; place-items: center; background: var(--screen); overflow: hidden; }
+.online-frame::before { content: attr(data-format); font: 600 14px Consolas, monospace; color: var(--muted); }
+.online-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.online-card-info { flex: 1; display: flex; flex-direction: column; gap: 7px; padding: 10px; }
+.online-card h3 { font-size: 14px; overflow-wrap: anywhere; }
+.online-card-info > p { color: var(--muted); font-size: 12px; }
+.online-card-actions { margin-top: auto; display: flex; align-items: center; gap: 5px 10px; flex-wrap: wrap; font-size: 12px; }
+.online-card-actions button { margin-left: auto; min-height: 30px; }
+#online-more { margin-top: 12px; }
 
 dialog { max-width: min(430px, calc(100% - 34px)); border: var(--edge) solid var(--line); border-radius: var(--radius); padding: 0; background: var(--panel); }
 dialog::backdrop { background: #0b102198; }
