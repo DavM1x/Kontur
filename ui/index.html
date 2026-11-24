@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Контур</title>
+<link rel="icon" type="image/png" href="../assets/kontur-icon.png">
+<link rel="stylesheet" href="ui.css">
+<!-- full:begin -->
+<link rel="stylesheet" href="full.css">
+<!-- full:end -->
+<script defer src="we-archives.js"></script>
+<script defer src="ui.js"></script>
+<!-- full:begin -->
+<script defer src="appearance.js"></script>
+<!-- full:end -->
+</head>
+<body>
+<div class="app">
+  <header class="masthead">
+    <!-- full:begin -->
+    <div class="world" aria-hidden="true"><i></i><i></i></div>
+    <!-- full:end -->
+    <div class="brand">
+      <img class="mark" src="../assets/kontur-icon.png" width="44" height="44" alt="">
+      <div><h1>Контур</h1><p>Обои рабочего стола</p></div>
+    </div>
+    <!-- full:begin -->
+    <div class="environment">
+      <div class="theme-switch" role="group" aria-label="Фон приложения">
+        <button type="button" data-set-theme="day" aria-pressed="false"><i class="sun" aria-hidden="true"></i>День</button>
+        <button type="button" data-set-theme="night" aria-pressed="true"><i class="moon" aria-hidden="true"></i>Ночь</button>
+      </div>
+      <button id="music-toggle" type="button" aria-pressed="false">Звуки природы</button>
+    </div>
+    <!-- full:end -->
+  </header>
+
+  <div class="toolbar">
+    <nav aria-label="Разделы">
+      <button id="library-tab" aria-pressed="true">Библиотека</button>
+      <button id="favorites-tab" aria-pressed="false">Избранное</button>
+    </nav>
+    <div class="actions">
+      <button id="settings" type="button">Настройки</button>
+      <button id="import-project" type="button" title="Импортировать папку HTML-проекта">Папка проекта</button>
+      <button id="import" class="primary" type="button"><span aria-hidden="true">＋</span> Добавить файлы</button>
+    </div>
+  </div>
+
+  <main class="workbench">
+    <section class="collection" aria-labelledby="collection-title">
+      <div class="panel-head collection-head">
+        <h2 id="collection-title">Библиотека</h2><span id="count" aria-live="polite" aria-label="Количество обоев"></span>
+      </div>
+      <div class="gallery-tools">
+        <input id="search" type="search" placeholder="Поиск по имени" aria-label="Поиск обоев" autocomplete="off">
+        <select id="kind" aria-label="Тип обоев"><option value="">Все форматы</option><option value="image">Фото</option><option value="video">Видео</option><option value="web">Веб-обои</option></select>
+      </div>
+      <div id="tiles" class="tiles"></div>
+      <div class="browse-controls" aria-label="Листать обои" hidden>
+        <button id="previous" aria-label="Предыдущие обои" title="Предыдущие обои">←</button>
+        <span id="position" aria-live="polite"></span>
+        <button id="next" aria-label="Следующие обои" title="Следующие обои">→</button>
+      </div>
+    </section>
+
+    <section id="stage" class="stage" aria-labelledby="preview-title">
+      <div class="panel-head preview-head">
+        <h2 id="preview-title">Предпросмотр</h2>
+        <div class="preview-tools">
+          <span class="type" id="type" hidden></span>
+          <button id="favorite" class="icon" aria-label="В избранное" aria-pressed="false" title="В избранное"><span aria-hidden="true">♡</span></button>
+          <button id="apply" class="icon" aria-label="На весь экран" title="На весь экран"><span class="expand-icon" aria-hidden="true"></span></button>
+          <button id="fullscreen" class="icon exit-fullscreen" aria-label="Выйти из полноэкранного режима" title="Выйти из полноэкранного режима">×</button>
+        </div>
+      </div>
+      <div class="preview-surface">
+        <div class="media" id="media"></div>
+        <div class="preview-empty" id="preview-empty"><div class="screen-icon" aria-hidden="true"></div><p id="preview-message">Выбери обои в библиотеке</p></div>
+      </div>
+      <h3 id="title" hidden></h3>
+      <div class="stage-controls" id="stage-controls" hidden>
+        <label id="fit-label" for="fit">Масштаб</label><select id="fit"><option value="cover">Заполнить</option><option value="contain">Вписать</option></select>
+        <label id="web-fps-label" for="web-fps" hidden>Частота кадров</label>
+        <select id="web-fps" hidden><option value="15">15 кадр/с</option><option value="30" selected>30 кадр/с</option><option value="60">60 кадр/с</option></select>
+        <button id="wallpaper" class="primary" type="button" hidden>Установить на рабочий стол</button>
+      </div>
+      <div class="playback" id="playback" hidden>
+        <span>Обои запущены</span>
+        <button id="stop-video" type="button" hidden>Остановить живые обои</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<input type="file" id="project-files" webkitdirectory hidden>
+<input type="file" id="files" accept=".mp4,.webm,.jpg,.jpeg,.png,.webp,.zip,.rar" multiple hidden>
+<div class="drop" id="drop" hidden>Отпусти файлы, чтобы добавить обои</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<dialog id="prefs">
+  <form method="dialog">
+    <header class="panel-head"><h2>Настройки</h2><button class="icon" aria-label="Закрыть">×</button></header>
+    <label>Звук в предпросмотре видео <input type="checkbox" id="sound"></label>
+    <!-- full:begin -->
+    <label>Громкость звуков природы <input type="range" id="music-volume" min="0" max="100" value="24"></label>
+    <label>Анимации интерфейса <input type="checkbox" id="motion" checked></label>
+    <!-- full:end -->
+  </form>
+</dialog>
+</body>
+</html>

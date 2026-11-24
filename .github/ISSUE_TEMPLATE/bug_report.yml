@@ -1,0 +1,29 @@
+name: Сообщить о проблеме
+description: Ошибка установки, запуска или воспроизведения обоев
+title: "Ошибка: "
+body:
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Выпуск
+      options:
+        - Полный
+        - Облегчённый
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Версия Windows
+      placeholder: Windows 11 24H2
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как повторить
+      description: Укажи шаги, формат обоев и результат.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемое поведение

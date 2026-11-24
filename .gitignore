@@ -1,0 +1,9 @@
+/dist/
+/obj/
+/deps/
+/runtime/
+/.kontur-files.txt
+*.user
+*.userprefs
+.env
+.env.*
